@@ -1,0 +1,72 @@
+{% extends "main.html" %}
+{% block content %}
+{% include "header.html" %}
+	<div class="row divider green">
+		<div class="col-md-12"></div>
+	</div>
+	<div class="row banner menu">
+		<div class="col-md-11 col-md-offset-1 padding-none">
+			<h1>{{ brewery.name }}
+			<figure class="creator">
+				<img src="{{user.picture}}">
+				<figcaption>creator: {{user.name}}</figcaption>
+			</figure>
+			</h1>
+
+		</div>
+	</div>
+
+<div class = 'flash'>
+		      {% with messages = get_flashed_messages() %}
+      {% if messages %}
+          
+        <ul>
+        {% for message in messages %}
+            <li> <strong> {{ message }} </strong> </li>
+        {% endfor %}
+        </ul>
+        {% endif %}
+    {% endwith %}
+
+</div>
+	<div class="row padding-top padding-bottom">
+		<div class="col-md-1"></div>
+		<div class="col-md-11 padding-none">
+			<a href="{{url_for('editBrewery', brewery_id = brewery.id )}}">
+				<button class="btn btn-default" id="new-menu-item">
+					<span class="glyphicon glyphicon-pencil" aria-hidden="true"></span>Edit Brewery
+				</button>
+			</a>
+			<a href="{{url_for('newBeer', brewery_id = brewery.id )}}">
+				<button class="btn btn-default" id="new-menu-item">
+					<span class="glyphicon glyphicon-glass" aria-hidden="true"></span>Add Beer
+				</button>
+			</a>
+			<a href="{{url_for('deleteBrewery', brewery_id = brewery.id )}}">
+				<button class="btn btn-default delete" id="delete-brewery">
+					<span class="glyphicon glyphicon-trash" aria-hidden="true"></span>Delete Brewery
+				</button>
+			</a>
+		</div>
+		<div class="col-md-7"></div>
+	</div>
+	
+	{% if beers !=[] %}	
+		<div class="row">
+			<div class="col-md-1"></div>
+			<div class="col-md-7">
+				<h2>Beers</h2>
+					{% for i in beers %}
+						<div class="beer">
+							<h3>{{i.name}}</h3>
+							<h3>type: {{i.type}}</h3>
+							<p>{{i.description}}</p>
+							<a href='{{url_for('editBeer', brewery_id = brewery.id, beer_id=i.id ) }}'>Edit</a> | 
+							<a href='{{url_for('deleteBeer', brewery_id = brewery.id, beer_id=i.id ) }}'>Delete</a>
+						</div>
+					{% endfor %}
+			</div>
+			<div class="col-md-1"></div>
+		</div>
+	{% endif %}
+{% endblock %}
