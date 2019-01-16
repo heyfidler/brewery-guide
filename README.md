@@ -1,4 +1,4 @@
-#Seattle Brewery Guide
+# Seattle Brewery Guide
 
 Catalog of some of Seattle's breweries and beers.  Built using flask, sqlalchemy, and oauth2client to provide a secure catalog with CRUD capabilites. 
 
