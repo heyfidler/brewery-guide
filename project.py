@@ -6,6 +6,8 @@ from sqlalchemy import create_engine, asc
 from sqlalchemy.orm import sessionmaker
 from brewery_db_setup import Base, User, Brewery, Beer
 
+from functools import wraps
+
 from flask import session as login_session
 import random
 import string
@@ -30,6 +32,17 @@ Base.metadata.bind = engine
 
 DBSession = sessionmaker(bind=engine)
 session = DBSession()
+
+
+# login check decorator
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'username' in login_session:
+            return f(*args, **kwargs)
+        else:
+            return redirect('/login')
+    return decorated_function
 
 
 # Create anti-forgery state token
@@ -121,7 +134,6 @@ def gconnect():
     user_id = getUserID(login_session['email'])
     if user_id is not None:
         current_user = getUserInfo(user_id)
-        current_user = getUserInfo(user_id)
     else:
         user_id = createUser(login_session)
         current_user = getUserInfo(user_id)
@@ -159,11 +171,12 @@ def getUserInfo(user_id):
 
 
 def getUserID(email):
-    try:
-        user = session.query(User).filter_by(email=email).one()
-        return user.id
-    except:
+    user = session.query(User).filter_by(email=email).one()
+
+    if user is None:
         return None
+    else:
+        return user.id
 
 
 # DISCONNECT - Revoke a current user's token and reset their login_session
@@ -200,8 +213,8 @@ def breweryBeerJSON(brewery_id):
 
 @app.route('/brewery/<int:brewery_id>/beer/<int:beer_id>/JSON')
 def beerJSON(brewery_id, beer_id):
-    Beer = session.query(Beer).filter_by(id=beer_id).one()
-    return jsonify(Beer=Beer.serialize)
+    beer = session.query(Beer).filter_by(id=beer_id).one()
+    return jsonify(Beer=beer.serialize)
 
 
 @app.route('/brewery/JSON')
@@ -220,10 +233,14 @@ def showBreweries():
 
 # Create a new brewery
 @app.route('/brewery/new/', methods=['GET', 'POST'])
+@login_required
 def newBrewery():
-    if 'username' not in login_session:
-        return redirect('/login')
     if request.method == 'POST':
+
+        if not request.form['name']:
+            flash('new Brewery must have name')
+            return redirect(url_for('showBreweries'))
+
         newBrewery = Brewery(
             name=request.form['name'],
             address=request.form['address'],
@@ -238,11 +255,18 @@ def newBrewery():
 
 # Edit a brewery
 @app.route('/brewery/<int:brewery_id>/edit/', methods=['GET', 'POST'])
+@login_required
 def editBrewery(brewery_id):
-    if 'username' not in login_session:
-        return redirect('/login')
     editedBrewery = session.query(
         Brewery).filter_by(id=brewery_id).one()
+
+    brewery_creator = getUserInfo(editedBrewery.user_id)
+    current_user = getUserInfo(getUserID(login_session['email']))
+
+    if brewery_creator.id != current_user.id:
+        flash('must be brewery creator to edit')
+        return redirect(url_for('showBreweries'))
+
     if request.method == 'POST':
         if request.form['name']:
             editedBrewery.name = request.form['name']
@@ -255,11 +279,18 @@ def editBrewery(brewery_id):
 
 # Delete a brewery
 @app.route('/brewery/<int:brewery_id>/delete/', methods=['GET', 'POST'])
+@login_required
 def deleteBrewery(brewery_id):
-    if 'username' not in login_session:
-        return redirect('/login')
     breweryToDelete = session.query(
         Brewery).filter_by(id=brewery_id).one()
+
+    brewery_creator = getUserInfo(breweryToDelete.user_id)
+    current_user = getUserInfo(getUserID(login_session['email']))
+
+    if brewery_creator.id != current_user.id:
+        flash('must be brewery creator to delete')
+        return redirect(url_for('showBreweries'))
+
     if request.method == 'POST':
         session.delete(breweryToDelete)
         flash('%s Successfully Deleted' % breweryToDelete.name)
@@ -286,11 +317,14 @@ def showBeer(brewery_id):
 
 # Create a new beer
 @app.route('/brewery/<int:brewery_id>/beer/new/', methods=['GET', 'POST'])
+@login_required
 def newBeer(brewery_id):
-    if 'username' not in login_session:
-        return redirect('/login')
     brewery = session.query(Brewery).filter_by(id=brewery_id).one()
     if request.method == 'POST':
+        if not request.form['name']:
+            flash('new Beer must have name')
+            return redirect(url_for('showBeer', brewery_id=brewery_id))
+
         newBeer = Beer(
             name=request.form['name'],
             description=request.form['description'],
@@ -309,10 +343,17 @@ def newBeer(brewery_id):
 @app.route(
     '/brewery/<int:brewery_id>/beer/<int:beer_id>/edit',
     methods=['GET', 'POST'])
+@login_required
 def editBeer(brewery_id, beer_id):
-    if 'username' not in login_session:
-        return redirect('/login')
     editedBeer = session.query(Beer).filter_by(id=beer_id).one()
+
+    beer_creator = getUserInfo(editedBeer.user_id)
+    current_user = getUserInfo(getUserID(login_session['email']))
+
+    if beer_creator.id != current_user.id:
+        flash('must be beer creator to edit')
+        return redirect(url_for('showBeer', brewery_id=brewery_id))
+
     brewery = session.query(Brewery).filter_by(id=brewery_id).one()
     if request.method == 'POST':
         if request.form['name']:
@@ -336,11 +377,18 @@ def editBeer(brewery_id, beer_id):
 @app.route(
     '/brewery/<int:brewery_id>/beer/<int:beer_id>/delete',
     methods=['GET', 'POST'])
+@login_required
 def deleteBeer(brewery_id, beer_id):
-    if 'username' not in login_session:
-        return redirect('/login')
     brewery = session.query(Brewery).filter_by(id=brewery_id).one()
     beerToDelete = session.query(Beer).filter_by(id=beer_id).one()
+
+    beer_creator = getUserInfo(beerToDelete.user_id)
+    current_user = getUserInfo(getUserID(login_session['email']))
+
+    if beer_creator.id != current_user.id:
+        flash('must be beer creator to delete')
+        return redirect(url_for('showBeer', brewery_id=brewery_id))
+
     if request.method == 'POST':
         session.delete(beerToDelete)
         session.commit()
